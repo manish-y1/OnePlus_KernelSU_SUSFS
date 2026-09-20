@@ -393,13 +393,17 @@ runs:
       run: |
         set -euo pipefail
         
-        # Spoof kernel version for OP11r
+        # Safely bump kernel source for OP11r from 5.10.236 to 5.10.246
         if [ "$OP_MODEL" = "OP11r" ]; then
-          echo "::group::Safely Bumping kernel version"
+          echo "::group::Safely Bumping kernel source to 5.10.246 via Upstream ACK Patch"
           cd "$COMMON_KERNEL_FOLDER"
+          if [ -f "$GITHUB_WORKSPACE/patches/bump_5.10.236_to_5.10.246.patch" ]; then
+            echo "Applying upstream ACK 5.10.236 -> 5.10.246 patch..."
+            patch -p1 --forward --no-backup-if-mismatch -r - < "$GITHUB_WORKSPACE/patches/bump_5.10.236_to_5.10.246.patch" || true
+          fi
           sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 246/' Makefile
           sed -i 's/^EXTRAVERSION = .*/EXTRAVERSION = -android-12-9-o-g931a7e2ba585/' Makefile
-          echo "Bumped to 5.10.246-android-12-9-o-g931a7e2ba585"
+          echo "Kernel source safely bumped to 5.10.246-android-12-9-o-g931a7e2ba585"
           echo "::endgroup::"
         fi
         
