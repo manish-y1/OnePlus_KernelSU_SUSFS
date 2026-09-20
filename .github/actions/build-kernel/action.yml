@@ -1133,14 +1133,9 @@ runs:
                   patch -p1 --forward < "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/v2.2.0/fix_$file.patch" || true
                 fi
               done
-              # Safeguards: ensure required fix patches are applied for KernelSU-Next
-              if grep -q 'ksu_init_symbol_resolver' ./kernel/core/init.c 2>/dev/null; then
-                echo "Applying fix_init.c.patch as safeguard..."
-                patch -p1 --forward < "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/v2.2.0/fix_init.c.patch" || true
-              fi
-              if grep -q 'symbol_resolver.o' ./kernel/Kbuild 2>/dev/null; then
-                echo "Applying fix_Kbuild.patch as safeguard..."
-                patch -p1 --forward < "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/v2.2.0/fix_Kbuild.patch" || true
+              echo "Fixing KernelSU-Next compatibility for SUSFS..."
+              if [ -f "$GITHUB_WORKSPACE/patches/fix_ksun.py" ]; then
+                python3 "$GITHUB_WORKSPACE/patches/fix_ksun.py" "$KSUN_FOLDER"
               fi
               # Clean up any remaining .rej files
               find ./kernel -name "*.rej" -delete 2>/dev/null || true
