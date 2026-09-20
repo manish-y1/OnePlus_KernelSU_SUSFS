@@ -203,9 +203,19 @@ jobs:
           ksu_type=$(echo "$ksu_options_normalized" | jq -r '.[0].type')
           ksu_ref=$(echo "$ksu_options_normalized" | jq -r '.[0].hash')
           
+          has_susfs=$(echo "$merged_matrix" | jq -r '[.[].susfs] | any')
+
           if [ "$ksu_type" == "KSUN" ]; then
-            KSU_REPO_OWNER="KernelSU-Next"
-            KSU_REPO_NAME="KernelSU-Next"
+            if [ "$has_susfs" == "true" ]; then
+              KSU_REPO_OWNER="pershoot"
+              KSU_REPO_NAME="KernelSU-Next"
+              if [ "$ksu_ref" == "dev" ] || [ -z "$ksu_ref" ]; then
+                ksu_ref="dev-susfs"
+              fi
+            else
+              KSU_REPO_OWNER="KernelSU-Next"
+              KSU_REPO_NAME="KernelSU-Next"
+            fi
           else
             KSU_REPO_OWNER="tiann"
             KSU_REPO_NAME="KernelSU"

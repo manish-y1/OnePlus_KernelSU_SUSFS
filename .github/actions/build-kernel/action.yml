@@ -921,12 +921,35 @@ runs:
         cd "$KERNEL_PLATFORM_FOLDER"
         echo "Adding KernelSU Next..."
         KSU_INPUT="${{ inputs.ksu_branch_or_hash }}"
-        if [ -z "$KSU_INPUT" ]; then
-          curl --fail --location --proto '=https' -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -
+        if [ "$OP_SUSFS" = "true" ]; then
+          echo "SUSFS is enabled: using pershoot/KernelSU-Next (dev-susfs) with native SUSFS..."
+          git clone https://github.com/pershoot/KernelSU-Next.git KernelSU-Next
+          cd KernelSU-Next
+          if [ -n "$KSU_INPUT" ]; then
+            git checkout "$KSU_INPUT"
+          else
+            git checkout dev-susfs
+          fi
+          cd ..
+          
+          if [ -d "common/drivers" ]; then
+            DRIVERS_DIR="common/drivers"
+          elif [ -d "drivers" ]; then
+            DRIVERS_DIR="drivers"
+          fi
+          
+          rm -f "$DRIVERS_DIR/kernelsu" 2>/dev/null || true
+          ln -s "$KERNEL_PLATFORM_FOLDER/KernelSU-Next/kernel" "$DRIVERS_DIR/kernelsu"
+          grep -q 'obj-$(CONFIG_KSU) += kernelsu/' "$DRIVERS_DIR/Makefile" || printf '\nobj-$(CONFIG_KSU) += kernelsu/\n' >> "$DRIVERS_DIR/Makefile"
+          grep -q 'source "drivers/kernelsu/Kconfig"' "$DRIVERS_DIR/Kconfig" || sed -i '/endmenu/i source "drivers/kernelsu/Kconfig"' "$DRIVERS_DIR/Kconfig"
         else
-          curl --fail --location --proto '=https' -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s "$KSU_INPUT"
+          if [ -z "$KSU_INPUT" ]; then
+            curl --fail --location --proto '=https' -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -
+          else
+            curl --fail --location --proto '=https' -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash -s "$KSU_INPUT"
+          fi
         fi
-        git submodule update --init --recursive
+        git submodule update --init --recursive || true
         cd KernelSU-Next/kernel
         
         COMMITS_COUNT=$(/usr/bin/git rev-list --count HEAD)
@@ -1128,34 +1151,7 @@ runs:
             ;;
           "v2.2.0"|"v2.3.0")
             if [ "${{ inputs.ksu_type }}" = "KSUN" ]; then
-              cd "$KSUN_FOLDER"
-              patch -p1 --forward < "$SUSFS_FOLDER/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch" || true
-              for file in $(find ./kernel -name "*.rej" -exec basename {} .rej \; | sort -u); do
-                echo "Patching file: $file with fix_$file.patch"
-                if [ -f "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/$susfs_version/fix_$file.patch" ]; then
-                  patch -p1 --forward < "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/$susfs_version/fix_$file.patch" || true
-                elif [ -f "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/v2.2.0/fix_$file.patch" ]; then
-                  patch -p1 --forward < "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/v2.2.0/fix_$file.patch" || true
-                fi
-              done
-              echo "Fixing KernelSU-Next compatibility for SUSFS..."
-              if [ -f "$GITHUB_WORKSPACE/patches/fix_ksun.py" ]; then
-                python3 "$GITHUB_WORKSPACE/patches/fix_ksun.py" "$KSUN_FOLDER"
-              fi
-              # Clean up any remaining .rej files
-              find ./kernel -name "*.rej" -delete 2>/dev/null || true
-              echo "Patching Hook Mode!"
-              if [ -f "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/$susfs_version/overwrite_hook_mode.patch" ]; then
-                patch -p1 --forward < "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/$susfs_version/overwrite_hook_mode.patch" || true
-              elif [ -f "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/v2.2.0/overwrite_hook_mode.patch" ]; then
-                patch -p1 --forward < "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/v2.2.0/overwrite_hook_mode.patch" || true
-              fi
-              echo "Patching KSU_TOOLKIT Support for SusFS kernel!"
-              if [ -f "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/$susfs_version/ksu_toolkit.patch" ]; then
-                patch -p1 --forward < "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/$susfs_version/ksu_toolkit.patch" || true
-              elif [ -f "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/v2.2.0/ksu_toolkit.patch" ]; then
-                patch -p1 --forward < "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/v2.2.0/ksu_toolkit.patch" || true
-              fi
+              echo "KernelSU-Next (dev-susfs) carries native SUSFS support — skipping 10_enable_susfs_for_ksu.patch and fix patches"
             else
               cd "$KSU_FOLDER"
               patch -p1 --forward < "$SUSFS_FOLDER/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch" || true
@@ -2405,7 +2401,11 @@ runs:
           
           if [ "$KSU_SHA" != "unknown" ]; then
             if [ "${{ inputs.ksu_type }}" = "KSUN" ]; then
-              echo "| **KSUN Commit** | [\`${KSU_SHA:0:8}\`](https://github.com/KernelSU-Next/KernelSU-Next/commit/$KSU_SHA) |"
+              if [ "${{ env.OP_SUSFS }}" = true ]; then
+                echo "| **KSUN Commit** | [\`${KSU_SHA:0:8}\`](https://github.com/pershoot/KernelSU-Next/commit/$KSU_SHA) |"
+              else
+                echo "| **KSUN Commit** | [\`${KSU_SHA:0:8}\`](https://github.com/KernelSU-Next/KernelSU-Next/commit/$KSU_SHA) |"
+              fi
             else
               echo "| **KSU Commit** | [\`${KSU_SHA:0:8}\`](https://github.com/tiann/KernelSU/commit/$KSU_SHA) |"
             fi
