@@ -873,15 +873,16 @@ runs:
         
         if [ "${{ env.OP_SUSFS }}" = true ]; then
           echo "Using SUSFS branch/commit: $SUSFS_BRANCH"
+          SUSFS_DIR="${SUSFS_FOLDER:-$GITHUB_WORKSPACE/susfs4ksu}"
           FETCHED_SUSFS=false
           rm -rf "$SUSFS_DIR"
           
           # 1. Try git clone by branch/tag first
-          if git clone --depth 1 --branch "$SUSFS_BRANCH" https://gitlab.com/simonpunk/susfs4ksu.git "$SUSFS_DIR" 2>/dev/null; then
+          if git clone --depth 1 --branch "$SUSFS_BRANCH" https://gitlab.com/simonpunk/susfs4ksu.git "$SUSFS_DIR"; then
             echo "✅ Successfully cloned SUSFS branch: $SUSFS_BRANCH"
             FETCHED_SUSFS=true
           # 2. Try git fetch by commit hash (if SUSFS_BRANCH was resolved to a SHA)
-          elif (mkdir -p "$SUSFS_DIR" && cd "$SUSFS_DIR" && git init && git remote add origin https://gitlab.com/simonpunk/susfs4ksu.git && git fetch --depth 1 origin "$SUSFS_BRANCH" && git checkout FETCH_HEAD) 2>/dev/null; then
+          elif (mkdir -p "$SUSFS_DIR" && cd "$SUSFS_DIR" && git init && git remote add origin https://gitlab.com/simonpunk/susfs4ksu.git && git fetch --depth 1 origin "$SUSFS_BRANCH" && git checkout FETCH_HEAD); then
             echo "✅ Successfully fetched SUSFS commit: $SUSFS_BRANCH"
             FETCHED_SUSFS=true
           # 3. Fallback to archive fetch
