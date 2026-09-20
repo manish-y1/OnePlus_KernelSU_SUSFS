@@ -392,6 +392,17 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
+        
+        # Spoof kernel version for OP11r
+        if [ "$OP_MODEL" = "OP11r" ]; then
+          echo "::group::Safely Bumping kernel version"
+          cd "$COMMON_KERNEL_FOLDER"
+          sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 246/' Makefile
+          sed -i 's/^EXTRAVERSION = .*/EXTRAVERSION = -android-12-9-o-g931a7e2ba585/' Makefile
+          echo "Bumped to 5.10.246-android-12-9-o-g931a7e2ba585"
+          echo "::endgroup::"
+        fi
+        
         echo "::group::Get kernel version"
         cd "$COMMON_KERNEL_FOLDER"
         
