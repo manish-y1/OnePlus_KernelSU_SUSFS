@@ -923,14 +923,12 @@ runs:
         KSU_INPUT="${{ inputs.ksu_branch_or_hash }}"
         if [ "$OP_SUSFS" = "true" ]; then
           echo "SUSFS is enabled: using pershoot/KernelSU-Next (dev-susfs) with native SUSFS..."
-          git clone https://github.com/pershoot/KernelSU-Next.git KernelSU-Next
-          cd KernelSU-Next
-          if [ -n "$KSU_INPUT" ]; then
-            git checkout "$KSU_INPUT"
-          else
-            git checkout dev-susfs
+          git clone -b dev-susfs https://github.com/pershoot/KernelSU-Next.git KernelSU-Next
+          if [ -n "$KSU_INPUT" ] && [ "$KSU_INPUT" != "dev-susfs" ]; then
+            cd KernelSU-Next
+            git checkout "$KSU_INPUT" || true
+            cd ..
           fi
-          cd ..
           
           if [ -d "common/drivers" ]; then
             DRIVERS_DIR="common/drivers"
