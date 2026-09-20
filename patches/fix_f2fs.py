@@ -11,17 +11,13 @@ def fix_f2fs(kernel_folder):
     with open(file_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    # Clean up any corrupted line from previous unescaped sed if present
+    # Replace the 3-arg form with the 4-arg form required by 5.10.246.
+    # Pattern matches: inc_valid_block_count(sbi, dn->inode, &reserved)
+    # (with optional surrounding whitespace between tokens).
+    # Does NOT touch calls that already have 4 arguments.
     content = re.sub(
-        r'inc_valid_block_count\([^\)]*&reserved\)[^\)]*\)',
+        r'inc_valid_block_count\s*\(\s*sbi\s*,\s*dn->inode\s*,\s*&reserved\s*\)',
         r'inc_valid_block_count(sbi, dn->inode, &reserved, false)',
-        content
-    )
-
-    # Standard 3-arg call to 4-arg call conversion
-    content = re.sub(
-        r'inc_valid_block_count\((sbi,\s*dn->inode,\s*&reserved)(?:,\s*false)?\)',
-        r'inc_valid_block_count(\1, false)',
         content
     )
 
