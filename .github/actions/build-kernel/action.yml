@@ -401,6 +401,12 @@ runs:
             echo "Applying upstream ACK 5.10.236 -> 5.10.246 patch..."
             patch -p1 --forward --no-backup-if-mismatch -r - < "$GITHUB_WORKSPACE/patches/bump_5.10.236_to_5.10.246.patch" || true
           fi
+          
+          # Fix OnePlus OEM F2FS call to match 5.10.246 f2fs.h 4-arg signature:
+          # inc_valid_block_count(sbi, inode, count, partial)
+          echo "Fixing F2FS inc_valid_block_count call in fs/f2fs/file.c..."
+          sed -i 's/inc_valid_block_count(sbi, dn->inode, &reserved)/inc_valid_block_count(sbi, dn->inode, &reserved, false)/g' fs/f2fs/file.c
+          
           sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 246/' Makefile
           sed -i 's/^EXTRAVERSION = .*/EXTRAVERSION = -android-12-9-o-g931a7e2ba585/' Makefile
           echo "Kernel source safely bumped to 5.10.246-android-12-9-o-g931a7e2ba585"
@@ -874,27 +880,18 @@ runs:
         if [ "${{ env.OP_SUSFS }}" = true ]; then
           echo "Using SUSFS branch/commit: $SUSFS_BRANCH"
           SUSFS_DIR="${SUSFS_FOLDER:-$GITHUB_WORKSPACE/susfs4ksu}"
-          FETCHED_SUSFS=false
+          SUSFS_REPO="https://gitlab.com/simonpunk/susfs4ksu.git"
           rm -rf "$SUSFS_DIR"
           
-          # 1. Try git clone by branch/tag first
-          if git clone --depth 1 --branch "$SUSFS_BRANCH" https://gitlab.com/simonpunk/susfs4ksu.git "$SUSFS_DIR"; then
-            echo "✅ Successfully cloned SUSFS branch: $SUSFS_BRANCH"
-            FETCHED_SUSFS=true
-          # 2. Try git fetch by commit hash (if SUSFS_BRANCH was resolved to a SHA)
-          elif (mkdir -p "$SUSFS_DIR" && cd "$SUSFS_DIR" && git init && git remote add origin https://gitlab.com/simonpunk/susfs4ksu.git && git fetch --depth 1 origin "$SUSFS_BRANCH" && git checkout FETCH_HEAD); then
-            echo "✅ Successfully fetched SUSFS commit: $SUSFS_BRANCH"
-            FETCHED_SUSFS=true
-          # 3. Fallback to archive fetch
-          elif retry_fetch_archive "https://gitlab.com/simonpunk/susfs4ksu.git" "$SUSFS_BRANCH"; then
-            echo "✅ Successfully fetched SUSFS archive"
-            FETCHED_SUSFS=true
+          if [[ "$SUSFS_BRANCH" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "Cloning SUSFS and detaching at commit $SUSFS_BRANCH..."
+            git clone "$SUSFS_REPO" "$SUSFS_DIR"
+            git -C "$SUSFS_DIR" checkout --detach "$SUSFS_BRANCH"
+          else
+            echo "Cloning SUSFS branch $SUSFS_BRANCH..."
+            git clone --depth 1 --branch "$SUSFS_BRANCH" "$SUSFS_REPO" "$SUSFS_DIR"
           fi
           
-          if [ "$FETCHED_SUSFS" != "true" ]; then
-            echo "::error::Failed to fetch SUSFS after multiple attempts"
-            exit 1
-          fi
           echo "SUSFS_COMMIT_SHA=$SUSFS_BRANCH" >> $GITHUB_ENV
         fi
         echo "✅ Dependencies cloned"
