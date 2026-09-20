@@ -1125,7 +1125,7 @@ runs:
             if [ "${{ inputs.ksu_type }}" = "KSUN" ]; then
               cd "$KSUN_FOLDER"
               patch -p1 --forward < "$SUSFS_FOLDER/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch" || true
-              for file in $(find ./kernel -maxdepth 2 -name "*.rej" -exec basename {} .rej \;); do
+              for file in $(find ./kernel -name "*.rej" -exec basename {} .rej \; | sort -u); do
                 echo "Patching file: $file with fix_$file.patch"
                 if [ -f "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/$susfs_version/fix_$file.patch" ]; then
                   patch -p1 --forward < "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/$susfs_version/fix_$file.patch" || true
@@ -1133,6 +1133,17 @@ runs:
                   patch -p1 --forward < "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/v2.2.0/fix_$file.patch" || true
                 fi
               done
+              # Safeguards: ensure required fix patches are applied for KernelSU-Next
+              if grep -q 'ksu_init_symbol_resolver' ./kernel/core/init.c 2>/dev/null; then
+                echo "Applying fix_init.c.patch as safeguard..."
+                patch -p1 --forward < "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/v2.2.0/fix_init.c.patch" || true
+              fi
+              if grep -q 'symbol_resolver.o' ./kernel/Kbuild 2>/dev/null; then
+                echo "Applying fix_Kbuild.patch as safeguard..."
+                patch -p1 --forward < "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/v2.2.0/fix_Kbuild.patch" || true
+              fi
+              # Clean up any remaining .rej files
+              find ./kernel -name "*.rej" -delete 2>/dev/null || true
               echo "Patching Hook Mode!"
               if [ -f "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/$susfs_version/overwrite_hook_mode.patch" ]; then
                 patch -p1 --forward < "$KERNEL_PATCHES_FOLDER/next/susfs_fix_patches/$susfs_version/overwrite_hook_mode.patch" || true
