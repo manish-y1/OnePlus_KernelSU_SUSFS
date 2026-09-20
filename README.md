@@ -1,12 +1,13 @@
 <div align="center">
 
-# 🔥 Wild Kernels for OnePlus (Oppo/Realme)
+# 🔥 Wild Kernel for OnePlus 11R (CPH2487)
+
+### Android 16 • Linux 5.10.246 • KernelSU Next • SUSFS v2.3.0
 
 [![KernelSU-Next](https://img.shields.io/badge/KernelSU_Next-Supported-green)](https://kernelsu-next.github.io/webpage/)
 [![KernelSU](https://img.shields.io/badge/KernelSU-Supported-green)](https://kernelsu.org/)
-[![Wild KSU](https://img.shields.io/badge/Wild_KSU-Not%20Supported-cb2431)](https://github.com/WildKernels/Wild_KSU/)
-[![SUSFS](https://img.shields.io/badge/SUSFS-Integrated-orange?logo=gitlab)](https://gitlab.com/simonpunk/susfs4ksu)
-[![OnePlusOSS Tracking Status](https://img.shields.io/badge/OnePlusOSS--Tracker-active-green)](https://github.com/WildKernels/OnePlus_KernelSU_SUSFS/blob/status-page/README.md)
+[![SUSFS](https://img.shields.io/badge/SUSFS-v2.3.0-orange?logo=gitlab)](https://gitlab.com/simonpunk/susfs4ksu)
+[![Device](https://img.shields.io/badge/Device-OnePlus%2011R%20(CPH2487)-blue)](https://github.com/manish-y1/OnePlus_KernelSU_SUSFS)
 
 </div>
 

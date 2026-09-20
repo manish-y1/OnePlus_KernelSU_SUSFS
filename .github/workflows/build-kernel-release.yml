@@ -13,22 +13,15 @@ on:
         type: boolean
         default: false
       op_model:
-        description: 'Select the OnePlus kernels to build'
+        description: 'Select OnePlus 11R Android Version to build'
         required: true
         type: choice
         options:
-          - A14+15+16
-          - A15+16
-          - A14+15
           - A16
           - A15
           - A14
-          - android16-6.12
-          - android15-6.6
-          - android14-6.1
-          - android13-5.15
-          - android12-5.10
-        default: A14+15+16
+          - A14+15+16
+        default: A16
       ksu_options:
         description: 'Enter KernelSU build json'
         required: true
