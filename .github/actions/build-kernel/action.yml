@@ -405,7 +405,12 @@ runs:
           # Fix OnePlus OEM F2FS call to match 5.10.246 f2fs.h 4-arg signature:
           # inc_valid_block_count(sbi, inode, count, partial)
           echo "Fixing F2FS inc_valid_block_count call in fs/f2fs/file.c..."
-          sed -i 's/inc_valid_block_count(sbi, dn->inode, &reserved)/inc_valid_block_count(sbi, dn->inode, &reserved, false)/g' fs/f2fs/file.c
+          if [ -f "$GITHUB_WORKSPACE/patches/fix_f2fs.py" ]; then
+            python3 "$GITHUB_WORKSPACE/patches/fix_f2fs.py" "$COMMON_KERNEL_FOLDER"
+          else
+            sed -i 's/inc_valid_block_count(sbi, dn->inode, &reserved)/inc_valid_block_count(sbi, dn->inode, \&reserved, false)/g' fs/f2fs/file.c
+          fi
+          grep -n "inc_valid_block_count.*reserved" fs/f2fs/file.c || true
           
           sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 246/' Makefile
           sed -i 's/^EXTRAVERSION = .*/EXTRAVERSION = -android-12-9-o-g931a7e2ba585/' Makefile
