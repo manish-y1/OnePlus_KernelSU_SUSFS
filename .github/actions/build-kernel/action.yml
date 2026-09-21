@@ -393,15 +393,15 @@ runs:
       run: |
         set -euo pipefail
         
-        # Set kernel vermagic for OP11r to match device stock 5.10.246
-        if [ "$OP_MODEL" = "OP11r" ]; then
-          echo "::group::Setting OP11r vermagic to 5.10.246"
-          cd "$COMMON_KERNEL_FOLDER"
-          sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 246/' Makefile
-          sed -i 's/^EXTRAVERSION = .*/EXTRAVERSION = -android-12-9-o-g931a7e2ba585/' Makefile
-          echo "Kernel vermagic set to 5.10.246-android-12-9-o-g931a7e2ba585"
-          echo "::endgroup::"
-        fi
+        # We no longer need to fake the version because the kernel is natively 5.10.246
+        # if [ "$OP_MODEL" = "OP11r" ]; then
+        #   echo "::group::Setting OP11r vermagic to 5.10.246"
+        #   cd "$COMMON_KERNEL_FOLDER"
+        #   sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 246/' Makefile
+        #   sed -i 's/^EXTRAVERSION = .*/EXTRAVERSION = -android-12-9-o-g931a7e2ba585/' Makefile
+        #   echo "Kernel vermagic set to 5.10.246-android-12-9-o-g931a7e2ba585"
+        #   echo "::endgroup::"
+        # fi
         
         echo "::group::Get kernel version"
         cd "$COMMON_KERNEL_FOLDER"
@@ -1026,6 +1026,16 @@ runs:
         echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
         echo "KernelSU Version: $KSU_VERSION"
         echo "✅ KernelSU added (commit: ${KSU_COMMIT_SHA:0:8})"
+        echo "::endgroup::"
+
+    - name: Apply 5.10.246 ABI Struct Patches
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "::group::Apply 5.10.246 ABI Struct patches"
+        cd "$COMMON_KERNEL_FOLDER"
+        patch -p1 < "$KERNEL_PATCHES_FOLDER/common/5.10.246-abi.patch"
+        echo "✅ 5.10.246 ABI Struct patches applied"
         echo "::endgroup::"
 
     - name: Apply SUSFS Patches
