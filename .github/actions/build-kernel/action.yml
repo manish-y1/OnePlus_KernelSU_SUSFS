@@ -393,36 +393,13 @@ runs:
       run: |
         set -euo pipefail
         
-        # Safely bump kernel source for OP11r from 5.10.236 to 5.10.246
+        # Set kernel vermagic for OP11r to match device stock 5.10.246
         if [ "$OP_MODEL" = "OP11r" ]; then
-          echo "::group::Safely Bumping kernel source to 5.10.246 via Upstream ACK Patch"
+          echo "::group::Setting OP11r vermagic to 5.10.246"
           cd "$COMMON_KERNEL_FOLDER"
-          if [ -f "$GITHUB_WORKSPACE/patches/bump_5.10.236_to_5.10.246.patch" ]; then
-            echo "Applying upstream ACK 5.10.236 -> 5.10.246 patch..."
-            patch -p1 --forward --no-backup-if-mismatch -r - < "$GITHUB_WORKSPACE/patches/bump_5.10.236_to_5.10.246.patch" || true
-          fi
-          
-          # Fix OnePlus OEM F2FS call to match 5.10.246 f2fs.h 4-arg signature:
-          # inc_valid_block_count(sbi, inode, count, partial)
-          echo "Fixing F2FS inc_valid_block_count call in fs/f2fs/file.c..."
-          if [ -f "$GITHUB_WORKSPACE/patches/fix_f2fs.py" ]; then
-            python3 "$GITHUB_WORKSPACE/patches/fix_f2fs.py" "$COMMON_KERNEL_FOLDER"
-          else
-            sed -i 's/inc_valid_block_count(sbi, dn->inode, &reserved)/inc_valid_block_count(sbi, dn->inode, \&reserved, false)/g' fs/f2fs/file.c
-          fi
-          grep -n "inc_valid_block_count.*reserved" fs/f2fs/file.c || true
-
-          # Fix duplicate encoding_flags_show in fs/f2fs/sysfs.c (5.10.246 ACK merge artifact)
-          echo "Fixing duplicate encoding_flags_show in fs/f2fs/sysfs.c..."
-          if [ -f "$GITHUB_WORKSPACE/patches/fix_f2fs_sysfs.py" ]; then
-            python3 "$GITHUB_WORKSPACE/patches/fix_f2fs_sysfs.py" "$COMMON_KERNEL_FOLDER"
-          else
-            echo "Warning: fix_f2fs_sysfs.py not found, skipping sysfs.c dedup"
-          fi
-          
           sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 246/' Makefile
           sed -i 's/^EXTRAVERSION = .*/EXTRAVERSION = -android-12-9-o-g931a7e2ba585/' Makefile
-          echo "Kernel source safely bumped to 5.10.246-android-12-9-o-g931a7e2ba585"
+          echo "Kernel vermagic set to 5.10.246-android-12-9-o-g931a7e2ba585"
           echo "::endgroup::"
         fi
         
