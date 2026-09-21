@@ -1028,16 +1028,6 @@ runs:
         echo "✅ KernelSU added (commit: ${KSU_COMMIT_SHA:0:8})"
         echo "::endgroup::"
 
-    - name: Apply 5.10.246 ABI Struct Patches
-      shell: bash
-      run: |
-        set -euo pipefail
-        echo "::group::Apply 5.10.246 ABI Struct patches"
-        cd "$COMMON_KERNEL_FOLDER"
-        patch -p1 < "$KERNEL_PATCHES_FOLDER/common/5.10.246-abi.patch"
-        echo "✅ 5.10.246 ABI Struct patches applied"
-        echo "::endgroup::"
-
     - name: Apply SUSFS Patches
       shell: bash
       if: ${{ env.OP_SUSFS == 'true' }}
