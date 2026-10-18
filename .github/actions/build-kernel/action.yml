@@ -144,6 +144,7 @@ runs:
         bindgen="$OP_BINDGEN"
         ds="$OP_DS"
         ntsync="$OP_NTSYNC"
+        nomount="${OP_NOMOUNT:-false}"
         blacklist_modules="$OP_BLACKLIST_MODULES"
         optimize='${{ inputs.optimize_level }}'
         
@@ -297,6 +298,10 @@ runs:
           errors+=("Input 'ntsync' contains invalid characters. Allowed: 'true' or 'false'. Got: '$ntsync'")
         fi
         
+        if [[ "$nomount" != "true" && "$nomount" != "false" ]]; then
+          errors+=("Input 'nomount' contains invalid characters. Allowed: 'true' or 'false'. Got: '$nomount'")
+        fi
+        
         case "$optimize" in
           O2|O3) ;;
           *) errors+=("optimize_level must be O2 or O3. Got: '$optimize'"); ;;
@@ -393,15 +398,15 @@ runs:
       run: |
         set -euo pipefail
         
-        # Set kernel vermagic for OP11r to match device stock 5.10.246
-        if [ "$OP_MODEL" = "OP11r" ]; then
-          echo "::group::Setting OP11r vermagic to 5.10.246"
-          cd "$COMMON_KERNEL_FOLDER"
-          sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 246/' Makefile
-          sed -i 's/^EXTRAVERSION = .*/EXTRAVERSION = -android-12-9-o-g931a7e2ba585/' Makefile
-          echo "Kernel vermagic set to 5.10.246-android-12-9-o-g931a7e2ba585"
-          echo "::endgroup::"
-        fi
+        # We no longer need to fake the version because the kernel is natively 5.10.246
+        # if [ "$OP_MODEL" = "OP11r" ]; then
+        #   echo "::group::Setting OP11r vermagic to 5.10.246"
+        #   cd "$COMMON_KERNEL_FOLDER"
+        #   sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 246/' Makefile
+        #   sed -i 's/^EXTRAVERSION = .*/EXTRAVERSION = -android-12-9-o-g931a7e2ba585/' Makefile
+        #   echo "Kernel vermagic set to 5.10.246-android-12-9-o-g931a7e2ba585"
+        #   echo "::endgroup::"
+        # fi
         
         echo "::group::Get kernel version"
         cd "$COMMON_KERNEL_FOLDER"
@@ -1771,6 +1776,49 @@ runs:
         echo "✅ Droidspaces Support applied"
         echo "::endgroup::"
 
+    - name: Add NoMount support
+      shell: bash
+      if: ${{ env.OP_NOMOUNT == 'true' }}
+      env:
+        NOMOUNT_REPO: https://github.com/maxsteeel/nomount.git
+        NOMOUNT_REF: v2.1.1
+      run: |
+        echo "::group::Add NoMount Support"
+        set -euo pipefail
+        
+        NOMOUNT_DIR="$GITHUB_WORKSPACE/nomount"
+        rm -rf "$NOMOUNT_DIR"
+        git clone --depth 1 --branch "$NOMOUNT_REF" "$NOMOUNT_REPO" "$NOMOUNT_DIR"
+        
+        cd "$COMMON_KERNEL_FOLDER"
+        # Copy (not symlink) so the source survives cache/out-of-tree builds
+        rm -rf fs/nomount
+        mkdir -p fs/nomount
+        cp -f "$NOMOUNT_DIR/kernel/src/"* fs/nomount/
+        
+        if ! grep -q "nomount/" fs/Makefile; then
+          printf '\nobj-$(CONFIG_NOMOUNT) += nomount/\n' >> fs/Makefile
+        fi
+        
+        if ! grep -q 'source "fs/nomount/Kconfig"' fs/Kconfig; then
+          # Insert before the last endmenu, same as upstream setup.sh
+          awk '
+            /^endmenu/ { last_match = NR }
+            { lines[NR] = $0 }
+            END {
+              for (i = 1; i <= NR; i++) {
+                if (i == last_match) print "source \"fs/nomount/Kconfig\""
+                print lines[i]
+              }
+            }
+          ' fs/Kconfig > fs/Kconfig.tmp && mv fs/Kconfig.tmp fs/Kconfig
+        fi
+        
+        echo "CONFIG_NOMOUNT=y" >> "$COMMON_KERNEL_FOLDER/arch/arm64/configs/gki_defconfig"
+        
+        echo "✅ NoMount ($NOMOUNT_REF) integrated as built-in"
+        echo "::endgroup::"
+
     - name: Add Build based configs
       shell: bash
       run: |
@@ -2363,6 +2411,7 @@ runs:
           echo "Unicode Fix: ${{ env.OP_UNICODE }}"
           echo "NTSync: ${{ env.OP_NTSYNC }}"
           echo "Droidspaces: ${{ env.OP_DS }}"
+          echo "NoMount: ${{ env.OP_NOMOUNT || 'false' }}"
           echo ""
           echo "Image SHA256: ${{ steps.collect_stats.outputs.image_sha256 }}"
           echo "AnyKernel3 ZIP SHA256: ${{ steps.create_zip.outputs.zip_sha256 }}"
@@ -2434,6 +2483,7 @@ runs:
           echo "| **Unicode Fix** | ${{ env.OP_UNICODE }} |"
           echo "| **NTSync** | ${{ env.OP_NTSYNC }} |"
           echo "| **Droidspaces** | ${{ env.OP_DS }} |"
+          echo "| **NoMount** | ${{ env.OP_NOMOUNT || 'false' }} |"
           
           echo ""
           echo "### 📊 Build Metrics"
