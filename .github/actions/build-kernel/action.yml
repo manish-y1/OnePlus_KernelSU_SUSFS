@@ -393,15 +393,15 @@ runs:
       run: |
         set -euo pipefail
         
-        # We no longer need to fake the version because the kernel is natively 5.10.246
-        # if [ "$OP_MODEL" = "OP11r" ]; then
-        #   echo "::group::Setting OP11r vermagic to 5.10.246"
-        #   cd "$COMMON_KERNEL_FOLDER"
-        #   sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 246/' Makefile
-        #   sed -i 's/^EXTRAVERSION = .*/EXTRAVERSION = -android-12-9-o-g931a7e2ba585/' Makefile
-        #   echo "Kernel vermagic set to 5.10.246-android-12-9-o-g931a7e2ba585"
-        #   echo "::endgroup::"
-        # fi
+        # Set kernel vermagic for OP11r to match device stock 5.10.246
+        if [ "$OP_MODEL" = "OP11r" ]; then
+          echo "::group::Setting OP11r vermagic to 5.10.246"
+          cd "$COMMON_KERNEL_FOLDER"
+          sed -i 's/^SUBLEVEL = .*/SUBLEVEL = 246/' Makefile
+          sed -i 's/^EXTRAVERSION = .*/EXTRAVERSION = -android-12-9-o-g931a7e2ba585/' Makefile
+          echo "Kernel vermagic set to 5.10.246-android-12-9-o-g931a7e2ba585"
+          echo "::endgroup::"
+        fi
         
         echo "::group::Get kernel version"
         cd "$COMMON_KERNEL_FOLDER"
