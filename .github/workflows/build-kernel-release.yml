@@ -609,11 +609,32 @@ jobs:
         run: |
           set -euo pipefail
           echo "::group::Install dependencies"
-          sudo apt-get -o Acquire::Retries=3 update -qq
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+
+          # GitHub runner apt mirrors intermittently 404/throttle, which makes a
+          # single `apt-get update` fail under `set -e` and kills the whole build
+          # within seconds. Retry both update and install a few times before giving up.
+          run_with_retry() {
+            local attempt=1 max=5
+            until "$@"; do
+              if [ "$attempt" -ge "$max" ]; then
+                echo "::error::'$*' still failing after $max attempts"
+                return 1
+              fi
+              echo "::warning::'$*' failed (attempt $attempt/$max); retrying in $((attempt * 10))s..."
+              sleep "$((attempt * 10))"
+              attempt=$((attempt + 1))
+            done
+          }
+
+          # `|| true`: a single stale/unreachable mirror must not abort the whole
+          # update; the install step below is what actually gates on the packages.
+          run_with_retry sudo apt-get -o Acquire::Retries=3 update -qq || true
+
+          run_with_retry sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             git curl ca-certificates build-essential clang lld flex bison \
             libelf-dev libssl-dev libncurses-dev zlib1g-dev liblz4-tool \
             libxml2-utils rsync unzip dwarves file python3 ccache jq bc dos2unix kmod libdw-dev elfutils pigz
+
           sudo apt-get clean
           echo "✅ Dependencies installed"
           echo "::endgroup::"
