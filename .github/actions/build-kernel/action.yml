@@ -1307,7 +1307,39 @@ runs:
         CONFIG_KSU_SUSFS_SUS_MAP=y
         CONFIG_KSU_SUSFS_SUS_SU=n
         EOF
-        
+
+        echo "::endgroup::"
+
+    - name: Extra SUSFS Stealth
+      if: ${{ env.OP_SUSFS_STEALTH == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "::group::Extra SUSFS stealth"
+        # Appended after the base SUSFS block so these duplicate keys win:
+        #  - ENABLE_LOG=n   : stop SUSFS from printing to dmesg (reduces footprint)
+        #  - SUS_OVERLAYFS=y : also hide the module overlayfs mounts
+        cat >> "$COMMON_KERNEL_FOLDER/arch/arm64/configs/gki_defconfig" <<EOF
+        CONFIG_KSU_SUSFS_ENABLE_LOG=n
+        CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y
+        EOF
+        echo "✅ Extra SUSFS stealth applied"
+        echo "::endgroup::"
+
+    - name: Add WireGuard Support
+      if: ${{ env.OP_WIREGUARD == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "::group::Add WireGuard"
+        # WireGuard is in-tree since 5.6, so no source changes are needed;
+        # building it in (=y) avoids shipping an out-of-tree module.
+        cat >> "$COMMON_KERNEL_FOLDER/arch/arm64/configs/gki_defconfig" <<EOF
+        CONFIG_WIREGUARD=y
+        CONFIG_NET_UDP_TUNNEL=y
+        CONFIG_NET_FOU=y
+        EOF
+        echo "✅ WireGuard support added"
         echo "::endgroup::"
 
     - name: Add BBG
@@ -2410,6 +2442,8 @@ runs:
           echo "IP_SET & IPv6 NAT: ${{ env.OP_IP_SET }}"
           echo "Unicode Fix: ${{ env.OP_UNICODE }}"
           echo "NTSync: ${{ env.OP_NTSYNC }}"
+          echo "WireGuard: ${{ env.OP_WIREGUARD }}"
+          echo "SUSFS Stealth: ${{ env.OP_SUSFS_STEALTH }}"
           echo "Droidspaces: ${{ env.OP_DS }}"
           echo "NoMount: ${{ env.OP_NOMOUNT || 'false' }}"
           echo ""
@@ -2482,6 +2516,8 @@ runs:
           echo "| **IP_SET & IPv6 NAT** | ${{ env.OP_IP_SET }} |"
           echo "| **Unicode Fix** | ${{ env.OP_UNICODE }} |"
           echo "| **NTSync** | ${{ env.OP_NTSYNC }} |"
+          echo "| **WireGuard** | ${{ env.OP_WIREGUARD }} |"
+          echo "| **SUSFS Stealth** | ${{ env.OP_SUSFS_STEALTH }} |"
           echo "| **Droidspaces** | ${{ env.OP_DS }} |"
           echo "| **NoMount** | ${{ env.OP_NOMOUNT || 'false' }} |"
           
@@ -2544,6 +2580,8 @@ runs:
 
     - name: Save ccache cache
       if: always() && steps.build_kernel_step.conclusion == 'success'
+      # A failed cache upload only slows the next build; never fail a good kernel build over it.
+      continue-on-error: true
       uses: ./action-source/.github/actions/cache/save
       with:
         cache_path: ${{ env.CCACHE_DIR }}
